@@ -23,13 +23,17 @@ void delete_rbtree(rbtree *t) {
 void left_rotate(rbtree *t, node_t *key) {
   node_t *new_parent = key->right;
   node_t *new_son = new_parent->left;
+  if (new_son != t->nil) {
+    new_son->parent = key;
+  }
   // 1. 조부모관계 정리
-  if (key->parent->left == key) {
+  new_parent->parent = key->parent;
+  if (key->parent == t->nil) {
+    t->root = new_parent;
+  } else if (key->parent->left == key) {
     // 만약 key가 왼쪽 자식이었다면
-    new_parent->parent = key->parent;
     key->parent->left = new_parent;
   } else {
-    new_parent->parent = key->parent;
     key->parent->right = new_parent;
   }
   // 2. 부모관계 정리
@@ -37,7 +41,6 @@ void left_rotate(rbtree *t, node_t *key) {
   new_parent->left = key;
   // 3. new_parent의 왼쪽 자식이었던 애 관계 정리
   key->right = new_son;
-  new_son->parent = key;
 }
 
 //오른쪽으로 회전
@@ -45,13 +48,17 @@ void left_rotate(rbtree *t, node_t *key) {
 void right_rotate(rbtree *t, node_t *key) {
   node_t *new_parent = key->left;
   node_t *new_son = new_parent->right;
+  if (new_son != t->nil) {
+    new_son->parent = key;
+  }
   // 1. 조부모관계 정리
-  if (key->parent->left == key) {
+  new_parent->parent = key->parent;
+  if (key->parent == t->nil) {
+    t->root = key;
+  } else if (key->parent->left == key) {
     // 만약 key가 왼쪽 자식이었다면
-    new_parent->parent = key->parent;
     key->parent->left = new_parent;
   } else {
-    new_parent->parent = key->parent;
     key->parent->right = new_parent;
   }
   // 2. 부모관계 정리
@@ -59,7 +66,6 @@ void right_rotate(rbtree *t, node_t *key) {
   new_parent->right = key;
   // 3. new_parent의 왼쪽 자식이었던 애 관계 정리
   key->left = new_son;
-  new_son->parent = key;
 }
 
 void rbtree_insert_fixup(rbtree *t, node_t *key) {
@@ -80,32 +86,28 @@ void rbtree_insert_fixup(rbtree *t, node_t *key) {
         //조부모 레드로
         key = key->parent->parent;
         //포인터를 조부모로 옮김
-      } else if (key == key->parent->right) {
-        /*
-         삼촌이 블랙이면 => 두 경우로 나눠서 연산
-         1) key와 key의 부모와 key의 조부모가 linear한 경우
-          => key의 부모를 중심으로 반대 방향으로 회전시키고, 부모와 조부모의
-         노드 색을 switch
-         2) key와 key의 부모와 key의 조부모가 triangle인 경우
-          => (1) key가 한 층 올라가도록 key를 중심으로 회전하고, 포인터를 내려간
-         부모로 옮긴다.
-         (2) linear인 경우와 같게 되었으므로, 해당 경우의 연산을 수행한다.
-         (key의 부모를 중심으로 반대 방향으로 회전시키고, 부모와 조부모의
-         노드 색을 switch)
-        */
-        // 현재는 triangle인 경우
-        // 1번 수행
-        key = key->parent;
-        left_rotate(t, key);
-        // 2번 수행
-        right_rotate(t, key->parent->parent);
-        key->parent->color = RBTREE_BLACK;
-        key->parent->parent->color = RBTREE_RED;
       } else {
-        // linear인 경우
-        right_rotate(t, key->parent->parent);
+        if (key == key->parent->right) {
+          /*
+           삼촌이 블랙이면 => 두 경우로 나눠서 연산
+           1) key와 key의 부모와 key의 조부모가 linear한 경우
+            => key의 부모를 중심으로 반대 방향으로 회전시키고, 부모와 조부모의
+           노드 색을 switch
+           2) key와 key의 부모와 key의 조부모가 triangle인 경우
+            => (1) key가 한 층 올라가도록 key를 중심으로 회전하고, 포인터를
+           내려간 부모로 옮긴다. (2) linear인 경우와 같게 되었으므로, 해당
+           경우의 연산을 수행한다. (key의 부모를 중심으로 반대 방향으로
+           회전시키고, 부모와 조부모의 노드 색을 switch)
+          */
+          // 현재는 triangle인 경우
+          // 1번 수행
+          key = key->parent;
+          left_rotate(t, key);
+        }
+        // 2번 수행 & linear인 경우
         key->parent->color = RBTREE_BLACK;
         key->parent->parent->color = RBTREE_RED;
+        right_rotate(t, key->parent->parent);
       }
     } else {
       //부모가 오른쪽 자식일 경우
@@ -121,41 +123,38 @@ void rbtree_insert_fixup(rbtree *t, node_t *key) {
         //조부모 레드로
         key = key->parent->parent;
         //포인터를 조부모로 옮김
-      } else if (key == key->parent->left) {
-        /*
-         삼촌이 블랙이면 => 두 경우로 나눠서 연산
-         1) key와 key의 부모와 key의 조부모가 linear한 경우
-          => key의 부모를 중심으로 반대 방향으로 회전시키고, 부모와 조부모의
-         노드 색을 switch
-         2) key와 key의 부모와 key의 조부모가 triangle인 경우
-          => (1) key가 한 층 올라가도록 key를 중심으로 회전하고, 포인터를 내려간
-         부모로 옮긴다.
-         (2) linear인 경우와 같게 되었으므로, 해당 경우의 연산을 수행한다.
-         (key의 부모를 중심으로 반대 방향으로 회전시키고, 부모와 조부모의
-         노드 색을 switch)
-        */
-        // 현재는 triangle인 경우
-        // 1번 수행
-        key = key->parent;
-        right_rotate(t, key);
-        // 2번 수행
-        left_rotate(t, key->parent->parent);
-        key->parent->color = RBTREE_BLACK;
-        key->parent->parent->color = RBTREE_RED;
       } else {
-        // linear인 경우
-        left_rotate(t, key->parent->parent);
+        if (key == key->parent->left) {
+          /*
+           삼촌이 블랙이면 => 두 경우로 나눠서 연산
+           1) key와 key의 부모와 key의 조부모가 linear한 경우
+            => key의 부모를 중심으로 반대 방향으로 회전시키고, 부모와 조부모의
+           노드 색을 switch
+           2) key와 key의 부모와 key의 조부모가 triangle인 경우
+            => (1) key가 한 층 올라가도록 key를 중심으로 회전하고, 포인터를
+           내려간 부모로 옮긴다. (2) linear인 경우와 같게 되었으므로, 해당
+           경우의 연산을 수행한다. (key의 부모를 중심으로 반대 방향으로
+           회전시키고, 부모와 조부모의 노드 색을 switch)
+          */
+          // 현재는 triangle인 경우
+          // 1번 수행
+          key = key->parent;
+          right_rotate(t, key);
+        }
+        // 2번 수행 & linear인 경우
         key->parent->color = RBTREE_BLACK;
         key->parent->parent->color = RBTREE_RED;
+        left_rotate(t, key->parent->parent);
       }
     }
   }
+  t->root->color = RBTREE_BLACK;
 }
 
 node_t *rbtree_insert(rbtree *t, const key_t key) {
+  node_t *keynode = (node_t *)calloc(1, sizeof(node_t));
   node_t *y = t->nil;
   node_t *x = t->root;
-  node_t *keynode = (node_t *)calloc(1, sizeof(node_t));
   keynode->key = key;
   while (x != t->nil) {
     y = x;
@@ -179,20 +178,14 @@ node_t *rbtree_insert(rbtree *t, const key_t key) {
   keynode->color = RBTREE_RED;
   rbtree_insert_fixup(t, keynode);
 
-  return t->root;
+  return keynode;
 }
 
 node_t *rbtree_find(const rbtree *t, const key_t key) {
   node_t *now = t->root;
-  node_t *result = (node_t *)calloc(1, sizeof(node_t));
-  while (true) {
-    if (now == t->nil) {
-      result = NULL;
-      break;
-    }
+  while (now != t->nil) {
     if (now->key == key) {
-      result = now;
-      break;
+      return now;
     }
     if (now->key > key) {
       now = now->left;
@@ -200,11 +193,11 @@ node_t *rbtree_find(const rbtree *t, const key_t key) {
       now = now->right;
     }
   }
-  return result;
+  return NULL;
 }
 
 node_t *rbtree_min(const rbtree *t) {
-  node_t *now = (node_t *)calloc(1, sizeof(node_t));
+  node_t *now = t->root;
 
   while (true) {
     if (now->left == t->nil) {
@@ -217,7 +210,7 @@ node_t *rbtree_min(const rbtree *t) {
 }
 
 node_t *rbtree_max(const rbtree *t) {
-  node_t *now = (node_t *)calloc(1, sizeof(node_t));
+  node_t *now = t->root;
 
   while (true) {
     if (now->right == t->nil) {
@@ -256,19 +249,20 @@ void erase_fixup(rbtree *t, node_t *x) {
         x->parent->color = RBTREE_RED;
         left_rotate(t, x->parent);
         w = x->parent->right;
-      } else if (w->left->color == RBTREE_BLACK &&
-                 w->right->color == RBTREE_BLACK) {
+      }
+      if (w->left->color == RBTREE_BLACK && w->right->color == RBTREE_BLACK) {
         // w가 black이고 w의 자식들이 모두 black. case 2
         w->color = RBTREE_RED;
         // x->parent->color = RBTREE_Black; 이거 없어도 되나?
         x = x->parent;
-      } else if (w->right->color == RBTREE_BLACK) {
-        // w의 왼쪽 자식이 red. case 3
-        w->left->color = RBTREE_BLACK;
-        w->color = RBTREE_RED;
-        right_rotate(t, w);
-        w = x->parent->right;
-      } else if (w->left->color == RBTREE_BLACK) {
+      } else {
+        if (w->right->color == RBTREE_BLACK) {
+          // w의 왼쪽 자식이 red. case 3
+          w->left->color = RBTREE_BLACK;
+          w->color = RBTREE_RED;
+          right_rotate(t, w);
+          w = x->parent->right;
+        }
         // w의 오른쪽 자식이 red. case 4
         w->color = x->parent->color;
         x->parent->color = RBTREE_BLACK;
@@ -285,18 +279,19 @@ void erase_fixup(rbtree *t, node_t *x) {
         x->parent->color = RBTREE_RED;
         right_rotate(t, x->parent);
         w = x->parent->left;
-      } else if (w->right->color == RBTREE_BLACK &&
-                 w->left->color == RBTREE_BLACK) {
+      }
+      if (w->right->color == RBTREE_BLACK && w->left->color == RBTREE_BLACK) {
         // w의 자식들이 모두 black. case 2
         w->color = RBTREE_RED;
         x = x->parent;
-      } else if (w->left->color == RBTREE_BLACK) {
-        // w의 왼쪽 자식이 red. case 3
-        w->right->color = RBTREE_BLACK;
-        w->color = RBTREE_RED;
-        left_rotate(t, w);
-        w = x->parent->left;
-      } else if (w->right->color == RBTREE_BLACK) {
+      } else {
+        if (w->left->color == RBTREE_BLACK) {
+          // w의 왼쪽 자식이 red. case 3
+          w->right->color = RBTREE_BLACK;
+          w->color = RBTREE_RED;
+          left_rotate(t, w);
+          w = x->parent->left;
+        }
         // w의 오른쪽 자식이 red. case 4
         w->color = x->parent->color;
         x->parent->color = RBTREE_BLACK;
