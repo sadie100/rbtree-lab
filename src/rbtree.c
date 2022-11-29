@@ -13,59 +13,63 @@ rbtree *new_rbtree(void) {
   return p;
 }
 
+void delete_node(rbtree *t, node_t *x) {
+  // 들어오는 노드를 free
+  if (x == t->nil) {
+    return;
+  }
+  if (x->left != t->nil) {
+    delete_node(t, x->left);
+  }
+  if (x->right != t->nil) {
+    delete_node(t, x->right);
+  }
+  free(x);
+}
+
 void delete_rbtree(rbtree *t) {
-  // TODO: reclaim the tree nodes's memory
+  delete_node(t, t->root);
+  free(t->nil);
   free(t);
 }
 
-//왼쪽으로 회전
-// key가 위에서 왼쪽으로 내려가는 노드
-void left_rotate(rbtree *t, node_t *key) {
-  node_t *new_parent = key->right;
-  node_t *new_son = new_parent->left;
-  if (new_son != t->nil) {
-    new_son->parent = key;
+void left_rotate(rbtree *t, node_t *x) {
+  node_t *y = x->right;
+  x->right = y->left;
+  if (y->left != t->nil) {
+    y->left->parent = x;
   }
-  // 1. 조부모관계 정리
-  new_parent->parent = key->parent;
-  if (key->parent == t->nil) {
-    t->root = new_parent;
-  } else if (key->parent->left == key) {
-    // 만약 key가 왼쪽 자식이었다면
-    key->parent->left = new_parent;
+  y->parent = x->parent;
+  if (x->parent == t->nil) {
+    t->root = y;
+  } else if (x->parent->left == x) {
+    // 만약 x가 왼쪽 자식이었다면
+    x->parent->left = y;
   } else {
-    key->parent->right = new_parent;
+    x->parent->right = y;
   }
-  // 2. 부모관계 정리
-  key->parent = new_parent;
-  new_parent->left = key;
-  // 3. new_parent의 왼쪽 자식이었던 애 관계 정리
-  key->right = new_son;
+  x->parent = y;
+  y->left = x;
 }
 
-//오른쪽으로 회전
-// key가 위에서 오른쪽으로 내려가는 노드
-void right_rotate(rbtree *t, node_t *key) {
-  node_t *new_parent = key->left;
-  node_t *new_son = new_parent->right;
-  if (new_son != t->nil) {
-    new_son->parent = key;
+void right_rotate(rbtree *t, node_t *y) {
+  node_t *x = y->left;
+  y->left = x->right;
+
+  if (x->right != t->nil) {
+    x->right->parent = y;
   }
-  // 1. 조부모관계 정리
-  new_parent->parent = key->parent;
-  if (key->parent == t->nil) {
-    t->root = key;
-  } else if (key->parent->left == key) {
-    // 만약 key가 왼쪽 자식이었다면
-    key->parent->left = new_parent;
+  x->parent = y->parent;
+  if (y->parent == t->nil) {
+    t->root = x;
+  } else if (y->parent->left == y) {
+    // 만약 y가 왼쪽 자식이었다면
+    y->parent->left = x;
   } else {
-    key->parent->right = new_parent;
+    y->parent->right = x;
   }
-  // 2. 부모관계 정리
-  key->parent = new_parent;
-  new_parent->right = key;
-  // 3. new_parent의 왼쪽 자식이었던 애 관계 정리
-  key->left = new_son;
+  x->right = y;
+  y->parent = x;
 }
 
 void rbtree_insert_fixup(rbtree *t, node_t *key) {
@@ -319,10 +323,10 @@ int rbtree_erase(rbtree *t, node_t *p) {
   } else {
     y = p->right;
     while (true) {
-      if (p->left == t->nil) {
+      if (y->left == t->nil) {
         break;
       }
-      y = p->left;
+      y = y->left;
     }
     y_origin_color = y->color;
     x = y->right;
@@ -337,15 +341,17 @@ int rbtree_erase(rbtree *t, node_t *p) {
     y->left = p->left;
     y->left->parent = y;
     y->color = p->color;
-    if (y_origin_color == RBTREE_BLACK) {
-      erase_fixup(t, x);
-    }
   }
+  if (y_origin_color == RBTREE_BLACK) {
+    erase_fixup(t, x);
+  }
+  free(p);
+  p = NULL;
   return 0;
 }
 
-void inorder_tree_walk(const rbtree *t, key_t *arr, node_t *x, int *idx,
-                       size_t n) {
+static void inorder_tree_walk(const rbtree *t, key_t *arr, node_t *x, int *idx,
+                              size_t n) {
   if (x == t->nil) {
     return;
   }
@@ -353,14 +359,15 @@ void inorder_tree_walk(const rbtree *t, key_t *arr, node_t *x, int *idx,
 
   if (*idx < n) {
     arr[*idx] = x->key;
+    (*idx)++;
   }
   inorder_tree_walk(t, arr, x->right, idx, n);
 }
 
 int rbtree_to_array(const rbtree *t, key_t *arr, const size_t n) {
   node_t *now = t->root;
-  int *idx = 0;
-  inorder_tree_walk(t, arr, now, idx, n);
+  int idx = 0;
+  inorder_tree_walk(t, arr, now, &idx, n);
 
   return 0;
 }
