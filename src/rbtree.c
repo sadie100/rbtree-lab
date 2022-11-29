@@ -229,12 +229,143 @@ node_t *rbtree_max(const rbtree *t) {
   return now;
 }
 
+void transplant(rbtree *t, node_t *origin, node_t *changing) {
+  // origin의 parent관계에 changing을 이식하기
+  if (origin->parent == t->nil) {
+    t->root = changing;
+  } else if (origin == origin->parent->left) {
+    origin->parent->left = changing;
+  } else {
+    origin->parent->right = changing;
+  }
+
+  changing->parent = origin->parent;
+}
+
+void erase_fixup(rbtree *t, node_t *x) {
+  // erase rbtree 추가연산
+  // x는 새로 들어온 자식 노드, 혹은 nil
+  while (x != t->root && x->color == RBTREE_BLACK) {
+    node_t *w = (node_t *)calloc(1, sizeof(node_t));
+    if (x == x->parent->left) {
+      // x가 왼쪽 자식일 경우
+      w = x->parent->right;
+      if (w->color == RBTREE_RED) {
+        // w가 red일 경우. case 1
+        w->color = RBTREE_BLACK;
+        x->parent->color = RBTREE_RED;
+        left_rotate(t, x->parent);
+        w = x->parent->right;
+      } else if (w->left->color == RBTREE_BLACK &&
+                 w->right->color == RBTREE_BLACK) {
+        // w가 black이고 w의 자식들이 모두 black. case 2
+        w->color = RBTREE_RED;
+        // x->parent->color = RBTREE_Black; 이거 없어도 되나?
+        x = x->parent;
+      } else if (w->right->color == RBTREE_BLACK) {
+        // w의 왼쪽 자식이 red. case 3
+        w->left->color = RBTREE_BLACK;
+        w->color = RBTREE_RED;
+        right_rotate(t, w);
+        w = x->parent->right;
+      } else if (w->left->color == RBTREE_BLACK) {
+        // w의 오른쪽 자식이 red. case 4
+        w->color = x->parent->color;
+        x->parent->color = RBTREE_BLACK;
+        w->right->color = RBTREE_BLACK;
+        left_rotate(t, x->parent);
+        x = t->root;
+      }
+    } else {
+      // 방향 바꾼거... x가 오른쪽 자식일 경우
+      w = x->parent->left;
+      if (w->color == RBTREE_RED) {
+        // case 1
+        w->color = RBTREE_BLACK;
+        x->parent->color = RBTREE_RED;
+        right_rotate(t, x->parent);
+        w = x->parent->left;
+      } else if (w->right->color == RBTREE_BLACK &&
+                 w->left->color == RBTREE_BLACK) {
+        // w의 자식들이 모두 black. case 2
+        w->color = RBTREE_RED;
+        x = x->parent;
+      } else if (w->left->color == RBTREE_BLACK) {
+        // w의 왼쪽 자식이 red. case 3
+        w->right->color = RBTREE_BLACK;
+        w->color = RBTREE_RED;
+        left_rotate(t, w);
+        w = x->parent->left;
+      } else if (w->right->color == RBTREE_BLACK) {
+        // w의 오른쪽 자식이 red. case 4
+        w->color = x->parent->color;
+        x->parent->color = RBTREE_BLACK;
+        w->left->color = RBTREE_BLACK;
+        right_rotate(t, x->parent);
+        x = t->root;
+      }
+    }
+  }
+  x->color = RBTREE_BLACK;
+}
+
 int rbtree_erase(rbtree *t, node_t *p) {
-  // TODO: implement erase
+  // p는 실제로 지우는 노드
+  // x는 자식노드
+  node_t *y = p;
+  color_t y_origin_color = y->color;
+  node_t *x = (node_t *)calloc(1, sizeof(node_t));
+  if (p->left == t->nil) {
+    x = p->right;
+    transplant(t, p, p->right);
+  } else if (p->right == t->nil) {
+    x = p->left;
+    transplant(t, p, p->left);
+  } else {
+    y = p->right;
+    while (true) {
+      if (p->left == t->nil) {
+        break;
+      }
+      y = p->left;
+    }
+    y_origin_color = y->color;
+    x = y->right;
+    if (y->parent == p) {
+      x->parent = y;
+    } else {
+      transplant(t, y, y->right);
+      y->right = p->right;
+      y->right->parent = y;
+    }
+    transplant(t, p, y);
+    y->left = p->left;
+    y->left->parent = y;
+    y->color = p->color;
+    if (y_origin_color == RBTREE_BLACK) {
+      erase_fixup(t, x);
+    }
+  }
   return 0;
 }
 
+void inorder_tree_walk(const rbtree *t, key_t *arr, node_t *x, int *idx,
+                       size_t n) {
+  if (x == t->nil) {
+    return;
+  }
+  inorder_tree_walk(t, arr, x->left, idx, n);
+
+  if (*idx < n) {
+    arr[*idx] = x->key;
+  }
+  inorder_tree_walk(t, arr, x->right, idx, n);
+}
+
 int rbtree_to_array(const rbtree *t, key_t *arr, const size_t n) {
-  // TODO: implement to_array
+  node_t *now = t->root;
+  int *idx = 0;
+  inorder_tree_walk(t, arr, now, idx, n);
+
   return 0;
 }
