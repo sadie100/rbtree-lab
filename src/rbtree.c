@@ -243,7 +243,7 @@ void erase_fixup(rbtree *t, node_t *x) {
   // erase rbtree 추가연산
   // x는 새로 들어온 자식 노드, 혹은 nil
   while (x != t->root && x->color == RBTREE_BLACK) {
-    node_t *w = (node_t *)calloc(1, sizeof(node_t));
+    node_t *w;
     if (x == x->parent->left) {
       // x가 왼쪽 자식일 경우
       w = x->parent->right;
@@ -313,7 +313,7 @@ int rbtree_erase(rbtree *t, node_t *p) {
   // x는 자식노드
   node_t *y = p;
   color_t y_origin_color = y->color;
-  node_t *x = (node_t *)calloc(1, sizeof(node_t));
+  node_t *x;
   if (p->left == t->nil) {
     x = p->right;
     transplant(t, p, p->right);
